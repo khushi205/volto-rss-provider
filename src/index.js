@@ -1,4 +1,3 @@
-
 const applyConfig = (config) => {
   config.settings = {
     ...config.settings,
@@ -6,6 +5,12 @@ const applyConfig = (config) => {
     supportedLanguages: ['en'],
     defaultLanguage: 'en',
   };
+
+  config.blocks.initialBlocks = {
+    ...config.blocks.initialBlocks,
+    rss_feed: ['title', 'listing'],
+  };
+
   return config;
 };
 
