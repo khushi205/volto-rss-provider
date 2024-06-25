@@ -53,6 +53,7 @@
   "dependencies": {
     "@eeacms/volto-accordion-block": "*",
     "@eeacms/volto-matomo": "*",
-    "@kitconcept/volto-slider-block": "*"
+    "@kitconcept/volto-slider-block": "*",
+    "feed": "4.2.2"
   }
 }

@@ -1,3 +1,5 @@
+import RSSFeedView from './components/RSSFeedView';
+
 const applyConfig = (config) => {
   config.settings = {
     ...config.settings,
@@ -11,6 +13,16 @@ const applyConfig = (config) => {
     rss_feed: ['title', 'listing'],
   };
 
+  config.views.contentTypesViews.rss_feed = RSSFeedView;
+
+  if (__SERVER__) {
+    const makeMiddlewares = require('./express-middleware').default;
+
+    config.settings.expressMiddleware = [
+      ...config.settings.expressMiddleware,
+      makeMiddlewares(config),
+    ];
+  }
   return config;
 };
 
