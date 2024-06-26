@@ -65,15 +65,52 @@ function make_rssMiddleware(config) {
           metadata_fields: '_all',
           b_start: 0,
         };
+
+        fetchListingItems(query, apiPath, authToken)
+          .then((items) => {
+            const feed = new Feed({
+              title: 'RSS Feed',
+              description: 'Plone Site RSS Feed',
+              id: settings.publicURL,
+              generator: 'EEA Website',
+              link: settings.publicURL,
+              feedLinks: {
+                rss: `${settings.publicURL}${req.path}`,
+              },
+            });
+
+            items.forEach((item) => {
+              feed.addItem({
+                id: toPublicURL(item['@id']),
+                title: item.title,
+                description: item.description,
+                date: item.last_modified,
+              });
+            });
+
+            const result = feed.rss2();
+            res.setHeader('content-type', 'application/rss+xml');
+            res.send(result);
+          })
+          .catch(next);
       }
     });
-
-    //  const feedUrl = `${config.settings.publicUrl}${req.path}`;
-
-    //const toPublicURL = (id) => `${config.settings.publicUrl}/${id}`;
-    // res.setHeader('content-type', 'application/rss+xml');
   }
   return rssMiddleware;
+}
+
+async function fetchListingItems(query, apiPath, authToken) {
+  const request = superagent
+    .get(`${apiPath}/@search`)
+    .query(query)
+    .accept('json');
+
+  if (authToken) {
+    request.set('Authorization', `Bearer ${authToken}`);
+  }
+
+  const response = await request;
+  return response.body.items;
 }
 
 function viewMiddleware(req, res, next) {
