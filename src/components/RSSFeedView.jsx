@@ -77,13 +77,13 @@ const DefaultView = (props) => {
 
   React.useEffect(() => {
     superagent
-      .get('@@rss_feed_view')
-      .query({ listing })
-      .set('accept', 'json')
+      .post('@@rss_feed_view')
+      .send(listing)
+      .set('Content-Type', 'application/json')
       .then((resp) => {
         //this should have items
       });
-  }, []);
+  }, [listing]);
 
   const Container =
     config.getComponent({ name: 'Container' }).component || SemanticContainer;

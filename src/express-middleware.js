@@ -18,17 +18,18 @@ const HEADERS = [
 ];
 
 function make_rssMiddleware(config) {
+  const { settings } = config;
+  const APISUFIX = settings.legacyTraverse ? '' : '/++api++';
+  let apiPath = '';
+  if (settings.internalApiPath && __SERVER__) {
+    apiPath = settings.internalApiPath;
+  } else if (__DEVELOPMENT__ && settings.devProxyToApiPath) {
+    apiPath = settings.devProxyToApiPath;
+  } else {
+    apiPath = settings.apiPath;
+  }
+
   function rssMiddleware(req, res, next) {
-    const { settings } = config;
-    const APISUFIX = settings.legacyTraverse ? '' : '/++api++';
-    let apiPath = '';
-    if (settings.internalApiPath && __SERVER__) {
-      apiPath = settings.internalApiPath;
-    } else if (__DEVELOPMENT__ && settings.devProxyToApiPath) {
-      apiPath = settings.devProxyToApiPath;
-    } else {
-      apiPath = settings.apiPath;
-    }
     let query;
     const request = superagent
       .get(
@@ -96,7 +97,38 @@ function make_rssMiddleware(config) {
       }
     });
   }
-  return rssMiddleware;
+
+  function viewMiddleware(req, res, next) {
+    // getAPIResourceWithAuth(req)
+    //   .then((resource) => {
+    //     // Just forward the headers that we need
+    //     HEADERS.forEach((header) => {
+    //       if (resource.get(header)) {
+    //         res.set(header, resource.get(header));
+    //       }
+    //     });
+    //     //check if we have listing items here
+    //     res.status(resource.statusCode);
+    //     res.send(resource.body);
+    //   })
+    //   .catch(next);
+    const request = superagent
+      .get(`${apiPath}${__DEVELOPMENT__ ? '' : APISUFIX}${req.path}`)
+      .accept('json');
+    const authToken = req.universalCookies.get('auth_token');
+    if (authToken) {
+      request.set('Authorization', `Bearer ${authToken}`);
+    }
+
+    request.end((err, resp) => {
+      if (resp && resp.body) {
+        const json = JSON.parse(JSON.stringify(resp.body));
+        console.log(json);
+        res.send(json);
+      }
+    });
+  }
+  return viewMiddleware;
 }
 
 async function fetchListingItems(query, apiPath, authToken) {
@@ -133,7 +165,7 @@ export default function makeMiddlewares(config) {
   const middleware = express.Router();
   middleware.use(express.urlencoded({ extended: true }));
   middleware.all('**/rss.xml', make_rssMiddleware(config));
-  middleware.all(['**/@@rss_feed_view'], viewMiddleware);
+  middleware.all(['**/@@rss_feed_view'], make_rssMiddleware(config));
 
   middleware.id = 'rss-middleware';
 
