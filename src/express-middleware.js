@@ -1,12 +1,7 @@
 import express from 'express';
 import superagent from 'superagent';
 import { Feed } from 'feed';
-import {
-  hasBlocksData,
-  getBaseUrl,
-  findBlocks,
-  toPublicURL,
-} from '@plone/volto/helpers';
+import { findBlocks, toPublicURL } from '@plone/volto/helpers';
 import { getAPIResourceWithAuth } from '@plone/volto/helpers';
 
 const HEADERS = [
@@ -97,44 +92,13 @@ function make_rssMiddleware(config) {
       }
     });
   }
-
-  function viewMiddleware(req, res, next) {
-    // getAPIResourceWithAuth(req)
-    //   .then((resource) => {
-    //     // Just forward the headers that we need
-    //     HEADERS.forEach((header) => {
-    //       if (resource.get(header)) {
-    //         res.set(header, resource.get(header));
-    //       }
-    //     });
-    //     //check if we have listing items here
-    //     res.status(resource.statusCode);
-    //     res.send(resource.body);
-    //   })
-    //   .catch(next);
-    const request = superagent
-      .get(`${apiPath}${__DEVELOPMENT__ ? '' : APISUFIX}${req.path}`)
-      .accept('json');
-    const authToken = req.universalCookies.get('auth_token');
-    if (authToken) {
-      request.set('Authorization', `Bearer ${authToken}`);
-    }
-
-    request.end((err, resp) => {
-      if (resp && resp.body) {
-        const json = JSON.parse(JSON.stringify(resp.body));
-        console.log(json);
-        res.send(json);
-      }
-    });
-  }
-  return viewMiddleware;
+  return rssMiddleware;
 }
 
 async function fetchListingItems(query, apiPath, authToken) {
   const request = superagent
-    .get(`${apiPath}/@search`)
-    .query(query)
+    .post(`${apiPath}/@querystring-search`)
+    .send(query)
     .accept('json');
 
   if (authToken) {
@@ -165,7 +129,7 @@ export default function makeMiddlewares(config) {
   const middleware = express.Router();
   middleware.use(express.urlencoded({ extended: true }));
   middleware.all('**/rss.xml', make_rssMiddleware(config));
-  middleware.all(['**/@@rss_feed_view'], make_rssMiddleware(config));
+  middleware.all(['**/@@rss_feed_view'], viewMiddleware);
 
   middleware.id = 'rss-middleware';
 

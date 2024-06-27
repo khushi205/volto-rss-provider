@@ -5,8 +5,9 @@
 
 import React from 'react';
 import PropTypes from 'prop-types';
-import { Feed } from 'feed';
 import superagent from 'superagent';
+import { compose } from 'redux';
+
 import {
   Container as SemanticContainer,
   Segment,
@@ -14,20 +15,30 @@ import {
   Grid,
   Label,
 } from 'semantic-ui-react';
+import { defineMessages, injectIntl } from 'react-intl';
 import config from '@plone/volto/registry';
 import { getSchema } from '@plone/volto/actions';
 import { getWidget } from '@plone/volto/helpers/Widget/utils';
 import RenderBlocks from '@plone/volto/components/theme/View/RenderBlocks';
+import useClipboard from '@plone/volto/hooks/clipboard/useClipboard';
 
 import {
   hasBlocksData,
   getBaseUrl,
+  addAppURL,
   findBlocks,
-  toPublicURL,
+  Helmet,
 } from '@plone/volto/helpers';
 import { useDispatch, useSelector } from 'react-redux';
 
 import { isEqual } from 'lodash';
+
+const messages = defineMessages({
+  rssFeed: {
+    id: 'rssFeed',
+    defaultMessage: 'RSS Feed',
+  },
+});
 
 /**
  * Component to display the default view.
@@ -42,6 +53,7 @@ const DefaultView = (props) => {
   const { views } = config.widgets;
   const contentSchema = useSelector((state) => state.schema?.schema);
   const [visible, setVisible] = React.useState(false);
+  const [copied, copy, setCopied] = useClipboard(`${addAppURL(path)}/rss.xml`);
   const fieldsetsToExclude = [
     'categorization',
     'dates',
@@ -88,44 +100,35 @@ const DefaultView = (props) => {
   const Container =
     config.getComponent({ name: 'Container' }).component || SemanticContainer;
 
-  const generateFeed = () => {
-    const feed = new Feed({
-      title: 'RSS Feed',
-      description: 'Plone Site RSS Feed',
-      id: config.settings.publicURL,
-      generator: 'EEA Website',
-      link: config.settings.publicURL,
-      feedLinks: {
-        rss: `${config.settings.publicURL}${location.pathname}`,
-      },
-    });
-
-    listing?.items.forEach((item) => {
-      feed.addItem({
-        id: toPublicURL(item['@id']),
-        title: item.title,
-        description: item.description,
-        date: item.last_modified,
-      });
-    });
-
-    const result = feed.rss2();
-    config.settings.rss_feed = result;
-    setVisible(true);
-  };
-
   // If the content is not yet loaded, then do not show anything
   return contentLoaded ? (
     hasBlocksData(content) ? (
       <Container id="page-document">
+        <Helmet
+          link={[
+            {
+              rel: 'alternate',
+              title: props.intl.formatMessage(messages.rssFeed),
+              href: `${addAppURL(path)}/rss.xml`,
+              type: 'application/rss+xml',
+            },
+          ]}
+        />
         <Segment>
-          <Button onClick={generateFeed}>Copy Feed link</Button>
+          <Button
+            onClick={() => {
+              copy();
+              setVisible(true);
+            }}
+          >
+            Copy Feed link
+          </Button>
           {visible && (
             <p>
               Copied! The RSS link is{' '}
-              <a href={`${location.pathname}/rss.xml`} target="_blank">
+              <a href={`${addAppURL(path)}/rss.xml`} target="_blank">
                 {' '}
-                {`${location.pathname}/rss.xml`}
+                {`${addAppURL(path)}/rss.xml`}
               </a>
             </p>
           )}
@@ -198,4 +201,4 @@ DefaultView.propTypes = {
   }).isRequired,
 };
 
-export default DefaultView;
+export default compose(injectIntl)(DefaultView);
