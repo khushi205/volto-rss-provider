@@ -43,10 +43,6 @@ function make_rssMiddleware(config) {
     apiPath = settings.apiPath;
   }
 
-  function fetchContentItemListing() {
-    return new Promise((resolve, reject) => {});
-  }
-
   function rssMiddleware(req, res, next) {
     let query;
     const request = superagent
