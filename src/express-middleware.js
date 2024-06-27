@@ -12,6 +12,25 @@ const HEADERS = [
   'Content-Type',
 ];
 
+function fetchListingItems(query, apiPath, authToken) {
+  return new Promise((resolve, reject) => {
+    const request = superagent
+      .post(`${apiPath}/@querystring-search`)
+      .send(query)
+      .accept('json');
+
+    if (authToken) {
+      request.set('Authorization', `Bearer ${authToken}`);
+    }
+    request.end((err, resp) => {
+      if (resp && resp.body) {
+        return resolve(resp.body.items);
+      }
+      return reject(err);
+    });
+  });
+}
+
 function make_rssMiddleware(config) {
   const { settings } = config;
   const APISUFIX = settings.legacyTraverse ? '' : '/++api++';
@@ -22,6 +41,10 @@ function make_rssMiddleware(config) {
     apiPath = settings.devProxyToApiPath;
   } else {
     apiPath = settings.apiPath;
+  }
+
+  function fetchContentItemListing() {
+    return new Promise((resolve, reject) => {});
   }
 
   function rssMiddleware(req, res, next) {
@@ -93,20 +116,6 @@ function make_rssMiddleware(config) {
     });
   }
   return rssMiddleware;
-}
-
-async function fetchListingItems(query, apiPath, authToken) {
-  const request = superagent
-    .post(`${apiPath}/@querystring-search`)
-    .send(query)
-    .accept('json');
-
-  if (authToken) {
-    request.set('Authorization', `Bearer ${authToken}`);
-  }
-
-  const response = await request;
-  return response.body.items;
 }
 
 function viewMiddleware(req, res, next) {
