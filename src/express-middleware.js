@@ -31,20 +31,8 @@ function fetchListingItems(query, apiPath, authToken) {
   });
 }
 
-function make_rssMiddleware(config) {
-  const { settings } = config;
-  const APISUFIX = settings.legacyTraverse ? '' : '/++api++';
-  let apiPath = '';
-  if (settings.internalApiPath && __SERVER__) {
-    apiPath = settings.internalApiPath;
-  } else if (__DEVELOPMENT__ && settings.devProxyToApiPath) {
-    apiPath = settings.devProxyToApiPath;
-  } else {
-    apiPath = settings.apiPath;
-  }
-
-  function rssMiddleware(req, res, next) {
-    let query;
+function fetchListingContent(apiPath, APISUFIX, req) {
+  return new Promise((resolve, reject) => {
     const request = superagent
       .get(
         `${apiPath}${__DEVELOPMENT__ ? '' : APISUFIX}${req.path.replace(
@@ -71,7 +59,7 @@ function make_rssMiddleware(config) {
           }
         }
 
-        query = {
+        let query = {
           ...queryData,
           ...(!queryData.b_size && {
             b_size: settings.defaultPageSize,
@@ -80,37 +68,62 @@ function make_rssMiddleware(config) {
           metadata_fields: '_all',
           b_start: 0,
         };
-
-        fetchListingItems(query, apiPath, authToken)
-          .then((items) => {
-            const feed = new Feed({
-              title: 'RSS Feed',
-              description: 'Plone Site RSS Feed',
-              id: settings.publicURL,
-              generator: 'EEA Website',
-              link: settings.publicURL,
-              feedLinks: {
-                rss: `${settings.publicURL}${req.path}`,
-              },
-            });
-
-            items.forEach((item) => {
-              feed.addItem({
-                id: toPublicURL(item['@id']),
-                title: item.title,
-                description: item.description,
-                date: item.last_modified,
-              });
-            });
-
-            const result = feed.rss2();
-            res.setHeader('content-type', 'application/rss+xml');
-            res.send(result);
-          })
-          .catch(next);
+        resolve(query);
       }
+      reject(err);
     });
+  });
+}
+
+function make_rssMiddleware(config) {
+  const { settings } = config;
+  const APISUFIX = settings.legacyTraverse ? '' : '/++api++';
+  let apiPath = '';
+  if (settings.internalApiPath && __SERVER__) {
+    apiPath = settings.internalApiPath;
+  } else if (__DEVELOPMENT__ && settings.devProxyToApiPath) {
+    apiPath = settings.devProxyToApiPath;
+  } else {
+    apiPath = settings.apiPath;
   }
+
+  function rssMiddleware(req, res, next) {
+    let query;
+    fetchListingContent(apiPath, APISUFIX, req)
+      .then((result) => {
+        query = result;
+      })
+      .catch((err) => {});
+
+    fetchListingItems(query, apiPath, authToken)
+      .then((items) => {
+        const feed = new Feed({
+          title: 'RSS Feed',
+          description: 'Plone Site RSS Feed',
+          id: settings.publicURL,
+          generator: 'EEA Website',
+          link: settings.publicURL,
+          feedLinks: {
+            rss: `${settings.publicURL}${req.path}`,
+          },
+        });
+
+        items.forEach((item) => {
+          feed.addItem({
+            id: toPublicURL(item['@id']),
+            title: item.title,
+            description: item.description,
+            date: item.last_modified,
+          });
+        });
+
+        const result = feed.rss2();
+        res.setHeader('content-type', 'application/rss+xml');
+        res.send(result);
+      })
+      .catch(next);
+  }
+
   return rssMiddleware;
 }
 
