@@ -31,7 +31,7 @@ function fetchListingItems(query, apiPath, authToken) {
   });
 }
 
-function fetchListingContent(apiPath, APISUFIX, req) {
+function fetchListingContent(apiPath, APISUFIX, req, settings) {
   return new Promise((resolve, reject) => {
     const request = superagent
       .get(
@@ -51,6 +51,9 @@ function fetchListingContent(apiPath, APISUFIX, req) {
         const json = JSON.parse(JSON.stringify(resp.body));
         const listingBlock = findBlocks(json.blocks, 'listing');
         let queryData = json.blocks[listingBlock]?.querystring;
+        if (!queryData) {
+          return reject(new Error('No query data found in listing block'));
+        }
         if (queryData?.sort_order !== null) {
           if (typeof queryData.sort_order === 'boolean') {
             queryData.sort_order = queryData.sort_order
@@ -88,38 +91,39 @@ function make_rssMiddleware(config) {
   }
 
   function rssMiddleware(req, res, next) {
-    let query;
-    fetchListingContent(apiPath, APISUFIX, req)
-      .then((result) => {
-        query = result;
-      })
-      .catch((err) => {});
+    fetchListingContent(apiPath, APISUFIX, req, settings)
+      .then((query) => {
+        fetchListingItems(
+          query,
+          apiPath,
+          req.universalCookies.get('auth_token'),
+        )
+          .then((items) => {
+            const feed = new Feed({
+              title: 'RSS Feed',
+              description: 'Plone Site RSS Feed',
+              id: settings.publicURL,
+              generator: 'EEA Website',
+              link: settings.publicURL,
+              feedLinks: {
+                rss: `${settings.publicURL}${req.path}`,
+              },
+            });
 
-    fetchListingItems(query, apiPath, authToken)
-      .then((items) => {
-        const feed = new Feed({
-          title: 'RSS Feed',
-          description: 'Plone Site RSS Feed',
-          id: settings.publicURL,
-          generator: 'EEA Website',
-          link: settings.publicURL,
-          feedLinks: {
-            rss: `${settings.publicURL}${req.path}`,
-          },
-        });
+            items.forEach((item) => {
+              feed.addItem({
+                id: toPublicURL(item['@id']),
+                title: item.title,
+                description: item.description,
+                date: item.last_modified,
+              });
+            });
 
-        items.forEach((item) => {
-          feed.addItem({
-            id: toPublicURL(item['@id']),
-            title: item.title,
-            description: item.description,
-            date: item.last_modified,
-          });
-        });
-
-        const result = feed.rss2();
-        res.setHeader('content-type', 'application/rss+xml');
-        res.send(result);
+            const result = feed.rss2();
+            res.setHeader('content-type', 'application/rss+xml');
+            res.send(result);
+          })
+          .catch(next);
       })
       .catch(next);
   }
