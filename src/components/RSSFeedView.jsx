@@ -87,16 +87,6 @@ const DefaultView = (props) => {
       state.querystringsearch?.subrequests?.[`${content.UID}-${listingBlock}`],
   );
 
-  React.useEffect(() => {
-    superagent
-      .post('@@rss_feed_view')
-      .send(listing)
-      .set('Content-Type', 'application/json')
-      .then((resp) => {
-        //this should have items
-      });
-  }, [listing]);
-
   const Container =
     config.getComponent({ name: 'Container' }).component || SemanticContainer;
 

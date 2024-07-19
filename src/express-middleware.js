@@ -2,17 +2,34 @@ import express from 'express';
 import superagent from 'superagent';
 import { Feed } from 'feed';
 import { findBlocks, toPublicURL } from '@plone/volto/helpers';
-import { getAPIResourceWithAuth } from '@plone/volto/helpers';
 
-const HEADERS = [
-  'Accept-Ranges',
-  'Cache-Control',
-  'Content-Disposition',
-  'Content-Range',
-  'Content-Type',
-];
-
-async function fetchListingContent(apiPath, APISUFIX, req, settings) {
+/**
+ * Retrieves the query data (search criteria) used by the listing block of the rss_feed content type.
+ *
+ * The returned query object will have the following format:
+ * {
+ *   query: [
+ *     {
+ *       i: <index>,
+ *       o: <operator>,
+ *       v: <value of the search criteria>
+ *     }
+ *   ],
+ *   sort_order: 'ascending',
+ *   b_size: 25,
+ *   metadata_fields: '_all',
+ *   b_start: 0
+ * }
+ *
+ * @function getListingBlockQuery
+ * @param {string} apiPath - The base path for the API requests.
+ * @param {string} APISUFIX - The suffix added to the API path depending on the environment.
+ * @param {Object} req - The incoming Express request object.
+ * @param {Object} settings - Configuration settings for the application.
+ * @return {Object} The query criteria of the listing block.
+ * @throws Will throw an error if no query data is found in the listing block or if the request fails.
+ */
+async function getListingBlockQuery(apiPath, APISUFIX, req, settings) {
   try {
     const request = superagent
       .get(
@@ -61,6 +78,20 @@ async function fetchListingContent(apiPath, APISUFIX, req, settings) {
   }
 }
 
+/**
+ * Fetches the listing block items based on the provided query data.
+ *
+ * The function sends a POST request to the @querystring-search endpoint with the query data
+ * and returns the items that match the search criteria.
+ * ref: https://6.docs.plone.org/plone.restapi/docs/source/endpoints/querystringsearch.html
+ *
+ * @function fetchListingItems
+ * @param {Object} query - The query data used for fetching items.
+ * @param {string} apiPath - The base path for the API requests.
+ * @param {string} authToken - The authentication token for authorized requests.
+ * @return {Array} An array of items that match the query criteria.
+ * @throws Will throw an error if the request fails.
+ */
 async function fetchListingItems(query, apiPath, authToken) {
   try {
     const request = superagent
@@ -79,6 +110,18 @@ async function fetchListingItems(query, apiPath, authToken) {
   }
 }
 
+/**
+ * Creates an Express middleware for generating an RSS feed using the listing block of the
+ * rss_feed content type.
+ *
+ * The middleware fetches the query data of the listing block, retrieves the matching items,
+ * and generates an RSS feed in XML format, which is sent as the response.
+ *
+ * @function make_rssMiddleware
+ * @param {Object} config - The configuration object for the middleware.
+ * @param {Object} config.settings - Configuration settings for the application.
+ * @return {Function} An Express middleware function for generating the RSS feed.
+ */
 function make_rssMiddleware(config) {
   const { settings } = config;
   const APISUFIX = settings.legacyTraverse ? '' : '/++api++';
@@ -93,7 +136,12 @@ function make_rssMiddleware(config) {
 
   async function rssMiddleware(req, res, next) {
     try {
-      const query = await fetchListingContent(apiPath, APISUFIX, req, settings);
+      const query = await getListingBlockQuery(
+        apiPath,
+        APISUFIX,
+        req,
+        settings,
+      );
       const items = await fetchListingItems(
         query,
         apiPath,
@@ -131,28 +179,10 @@ function make_rssMiddleware(config) {
   return rssMiddleware;
 }
 
-async function viewMiddleware(req, res, next) {
-  try {
-    const resource = await getAPIResourceWithAuth(req);
-    // Just forward the headers that we need
-    HEADERS.forEach((header) => {
-      if (resource.get(header)) {
-        res.set(header, resource.get(header));
-      }
-    });
-    //check if we have listing items here
-    res.status(resource.statusCode);
-    res.send(resource.body);
-  } catch (err) {
-    next(err);
-  }
-}
-
 export default function makeMiddlewares(config) {
   const middleware = express.Router();
   middleware.use(express.urlencoded({ extended: true }));
   middleware.all('**/rss.xml', make_rssMiddleware(config));
-  middleware.all(['**/@@rss_feed_view'], viewMiddleware);
 
   middleware.id = 'rss-middleware';
 
