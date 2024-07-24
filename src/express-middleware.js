@@ -162,8 +162,9 @@ function make_rssMiddleware(config) {
         },
       });
       items.forEach((item) => {
+        let link = toPublicURL(item['getPath'].replace('/Plone', ''));
         feed.addItem({
-          link: toPublicURL(item['getPath'].replace('/Plone', '')),
+          link: link,
           title: item.title,
           description: item.description,
           date: new Date(item.modified),
@@ -174,10 +175,12 @@ function make_rssMiddleware(config) {
             item.image_field &&
             item.image_scales &&
             item.image_scales[item.image_field]
-              ? toPublicURL(
-                  item.image_scales[item.image_field][0].scales.preview
-                    .download,
-                )
+              ? link
+                  .concat('/')
+                  .concat(
+                    item.image_scales[item.image_field][0].scales.preview
+                      .download,
+                  )
               : undefined,
         });
       });
