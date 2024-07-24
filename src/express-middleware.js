@@ -4,7 +4,8 @@ import { Feed } from 'feed';
 import { findBlocks, toPublicURL } from '@plone/volto/helpers';
 
 /**
- * Retrieves the query data (search criteria) used by the listing block of the rss_feed content type.
+ * Retrieves the query data (search criteria) used by the listing block of the rss_feed content type
+ * as well as the language, description, and title of the rss_feed.
  *
  * The returned query object will have the following format:
  * {
@@ -21,15 +22,15 @@ import { findBlocks, toPublicURL } from '@plone/volto/helpers';
  *   b_start: 0
  * }
  *
- * @function getListingBlockQuery
+ * @function getRssFeedData
  * @param {string} apiPath - The base path for the API requests.
  * @param {string} APISUFIX - The suffix added to the API path depending on the environment.
  * @param {Object} req - The incoming Express request object.
  * @param {Object} settings - Configuration settings for the application.
- * @return {Object} The query criteria of the listing block.
+ * @return {Object} An object containing the query data, language, description, and title of the rss_feed.
  * @throws Will throw an error if no query data is found in the listing block or if the request fails.
  */
-async function getListingBlockQuery(apiPath, APISUFIX, req, settings) {
+async function getRssFeedData(apiPath, APISUFIX, req, settings) {
   try {
     const request = superagent
       .get(
@@ -49,6 +50,9 @@ async function getListingBlockQuery(apiPath, APISUFIX, req, settings) {
     const json = JSON.parse(JSON.stringify(response.body));
     const listingBlock = findBlocks(json.blocks, 'listing');
     let queryData = json.blocks[listingBlock]?.querystring;
+    let language = json.language.token;
+    let description = json.description;
+    let title = json.title;
 
     if (!queryData) {
       throw new Error('No query data found in listing block');
@@ -71,8 +75,7 @@ async function getListingBlockQuery(apiPath, APISUFIX, req, settings) {
       metadata_fields: '_all',
       b_start: 0,
     };
-
-    return query;
+    return { query, language, description, title };
   } catch (err) {
     throw err;
   }
@@ -136,7 +139,7 @@ function make_rssMiddleware(config) {
 
   async function rssMiddleware(req, res, next) {
     try {
-      const query = await getListingBlockQuery(
+      const { query, language, description, title } = await getRssFeedData(
         apiPath,
         APISUFIX,
         req,
@@ -147,12 +150,12 @@ function make_rssMiddleware(config) {
         apiPath,
         req.universalCookies.get('auth_token'),
       );
-
       const feed = new Feed({
-        title: 'RSS Feed',
-        description: 'Plone Site RSS Feed',
+        title: title,
+        description: description || 'A Volto RSS Feed',
         id: settings.publicURL,
-        generator: 'EEA Website',
+        generator: 'RSS Feed Generator',
+        language: language || 'en',
         link: settings.publicURL,
         feedLinks: {
           rss: `${settings.publicURL}${req.path}`,
@@ -161,10 +164,10 @@ function make_rssMiddleware(config) {
 
       items.forEach((item) => {
         feed.addItem({
-          id: toPublicURL(item['@id']),
+          link: toPublicURL(item['getPath'].replace('/Plone', '')),
           title: item.title,
           description: item.description,
-          date: item.last_modified,
+          date: new Date(item.modified),
         });
       });
 
