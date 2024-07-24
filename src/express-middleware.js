@@ -1,7 +1,7 @@
 import express from 'express';
 import superagent from 'superagent';
 import { Feed } from 'feed';
-import { findBlocks, toPublicURL } from '@plone/volto/helpers';
+import { findBlocks, toPublicURL, flattenToAppURL } from '@plone/volto/helpers';
 
 /**
  * Retrieves the query data (search criteria) used by the listing block of the rss_feed content type
@@ -161,13 +161,24 @@ function make_rssMiddleware(config) {
           rss: `${settings.publicURL}${req.path}`,
         },
       });
-
       items.forEach((item) => {
         feed.addItem({
           link: toPublicURL(item['getPath'].replace('/Plone', '')),
           title: item.title,
           description: item.description,
           date: new Date(item.modified),
+          author: item['listCreators']
+            ? item['listCreators'].map((creator) => ({ name: creator }))
+            : [],
+          image:
+            item.image_field &&
+            item.image_scales &&
+            item.image_scales[item.image_field]
+              ? toPublicURL(
+                  item.image_scales[item.image_field][0].scales.preview
+                    .download,
+                )
+              : undefined,
         });
       });
 
