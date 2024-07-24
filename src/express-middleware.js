@@ -5,7 +5,7 @@ import { findBlocks, toPublicURL, flattenToAppURL } from '@plone/volto/helpers';
 
 /**
  * Retrieves the query data (search criteria) used by the listing block of the rss_feed content type
- * as well as the language, description, and title of the rss_feed.
+ * as well as the language, description, title, and subjects (tags) of the rss_feed.
  *
  * The returned query object will have the following format:
  * {
@@ -53,6 +53,7 @@ async function getRssFeedData(apiPath, APISUFIX, req, settings) {
     let language = json.language.token;
     let description = json.description;
     let title = json.title;
+    let subjects = json.subjects;
 
     if (!queryData) {
       throw new Error('No query data found in listing block');
@@ -75,7 +76,7 @@ async function getRssFeedData(apiPath, APISUFIX, req, settings) {
       metadata_fields: '_all',
       b_start: 0,
     };
-    return { query, language, description, title };
+    return { query, language, description, title, subjects };
   } catch (err) {
     throw err;
   }
@@ -139,12 +140,8 @@ function make_rssMiddleware(config) {
 
   async function rssMiddleware(req, res, next) {
     try {
-      const { query, language, description, title } = await getRssFeedData(
-        apiPath,
-        APISUFIX,
-        req,
-        settings,
-      );
+      const { query, language, description, title, subjects } =
+        await getRssFeedData(apiPath, APISUFIX, req, settings);
       const items = await fetchListingItems(
         query,
         apiPath,
@@ -161,6 +158,11 @@ function make_rssMiddleware(config) {
           rss: `${settings.publicURL}${req.path}`,
         },
       });
+      if (subjects) {
+        for (let i = 0; i < subjects.length; i++) {
+          feed.addCategory(subjects[i]);
+        }
+      }
       items.forEach((item) => {
         let link = toPublicURL(item['getPath'].replace('/Plone', ''));
         feed.addItem({
@@ -182,6 +184,9 @@ function make_rssMiddleware(config) {
                       .download,
                   )
               : undefined,
+          category: item.Subject
+            ? item.Subject.map((subject) => ({ name: subject }))
+            : [],
         });
       });
 
