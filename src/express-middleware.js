@@ -1,6 +1,6 @@
 import express from 'express';
 import superagent from 'superagent';
-import { Feed } from 'feed';
+import RSS from 'rss';
 import { findBlocks, toPublicURL, flattenToAppURL } from '@plone/volto/helpers';
 
 /**
@@ -147,52 +147,51 @@ function make_rssMiddleware(config) {
         apiPath,
         req.universalCookies.get('auth_token'),
       );
-      const feed = new Feed({
+      const feedOptions = {
         title: title,
         description: description || 'A Volto RSS Feed',
-        id: settings.publicURL,
+        feed_url: `${settings.publicURL}${req.path}`,
+        site_url: settings.publicURL,
         generator: 'RSS Feed Generator',
         language: language || 'en',
-        link: settings.publicURL,
-        feedLinks: {
-          rss: `${settings.publicURL}${req.path}`,
-        },
-      });
+      };
       if (subjects) {
         for (let i = 0; i < subjects.length; i++) {
-          feed.addCategory(subjects[i]);
+          feedOptions.categories = subjects;
         }
       }
+      const feed = new RSS(feedOptions);
       items.forEach((item) => {
         let link = toPublicURL(item['getPath'].replace('/Plone', ''));
-        feed.addItem({
-          link: link,
+        feed.item({
           title: item.title,
           description: item.description,
+          url: link, // link to the item
           date: new Date(item.modified),
           author: item['listCreators']
-            ? item['listCreators'].map((creator) => ({ name: creator }))
-            : [],
-          image:
+            ? item['listCreators'].map((creator) => creator).join(', ')
+            : undefined,
+          categories: item.Subject ? item.Subject : [],
+          enclosure:
             item.image_field &&
             item.image_scales &&
             item.image_scales[item.image_field]
-              ? link
-                  .concat('/')
-                  .concat(
-                    item.image_scales[item.image_field][0].scales.preview
-                      .download,
-                  )
+              ? {
+                  url: link
+                    .concat('/')
+                    .concat(
+                      item.image_scales[item.image_field][0].scales.preview
+                        .download,
+                    ),
+                  type: 'image/jpeg', // or the correct MIME type of the image
+                }
               : undefined,
-          category: item.Subject
-            ? item.Subject.map((subject) => ({ name: subject }))
-            : [],
         });
       });
 
-      const result = feed.rss2();
+      const xml = feed.xml({ indent: true });
       res.setHeader('content-type', 'application/rss+xml');
-      res.send(result);
+      res.send(xml);
     } catch (err) {
       next(err);
     }
