@@ -1,6 +1,64 @@
 # volto-rss-provider
 
-## Introduction
+## Considerations for `volto-rss-provider`
+
+### Introduction
+
+The `volto-rss-provider` add-on enables RSS feed generation for a Volto site. It uses the `rss_feed` content type, which contains a listing block for querying items to be displayed in the RSS feed. The feed can be accessed via URLs like `http://<website-domain>/<path-to-feed>/rss.xml`.
+
+### Features
+
+- Generates RSS feeds using Express middleware.
+- Supports Atom format for the feed.
+- Customizable feed options based on the `rss_feed` content type.
+- Allows users to specify tags, which become categories in the RSS feed.
+- Supports a variety of item options, including authors, categories, and enclosures, such as images.
+
+### Setting Up the RSS Feed
+
+The `rss_feed` content type includes a listing block. Use the listing block to query the items you want to display in the feed. The generated feed will include the specified items in RSS XML format.
+
+### Feed Options
+
+The following options are supported for the RSS feed:
+
+- **title**: The title of the RSS feed, derived from the `rss_feed` content type.
+- **description**: A description of the RSS feed, also from the `rss_feed` content type.
+- **feed_url**: The URL to the RSS feed.
+- **site_url**: The URL to the site the feed is for.
+- **generator**: The name of the feed generator.
+- **language**: The language of the feed content.
+- **categories**: Tags specified in the `rss_feed` content type, used as categories for the RSS feed.
+
+### Item Options
+
+The following options are supported for each item in the RSS feed:
+
+- **title**: The title of the item.
+- **description**: The description of the item.
+- **url**: The URL to the item.
+- **date**: The date the item was last modified.
+- **author**: The authors of the item, derived from the `listCreators` data field and set by the `Creators` option.
+- **categories**: The categories for the item, derived from the `Subject` data field and set by the `Tags` option.
+- **enclosure**: The enclosure for the item, typically used for images.
+
+### Image Precedence
+
+The precedence for images in the RSS feed is as follows:
+
+1. `previewImage` (if available)
+2. `leadImage` (if `previewImage` is not available)
+3. `null` (if neither `previewImage` nor `leadImage` is available)
+
+### Accessing the RSS Feed
+
+After setting up the `rss_feed` content type and configuring the listing block, you can access the generated RSS feed at:
+
+```
+http://<website-domain>/<path-to-feed>/rss.xml
+```
+
+This URL will return the RSS feed in XML format.
 
 ## Development
 

@@ -54,7 +54,6 @@
     "@eeacms/volto-accordion-block": "*",
     "@eeacms/volto-matomo": "*",
     "@kitconcept/volto-slider-block": "*",
-    "feed": "4.2.2",
     "rss": "1.2.2"
   }
 }
