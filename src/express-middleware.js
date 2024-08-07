@@ -5,7 +5,7 @@ import { findBlocks, toPublicURL, flattenToAppURL } from '@plone/volto/helpers';
 
 /**
  * Retrieves the query data (search criteria) used by the listing block of the rss_feed content type
- * as well as the language, description, title, and subjects (tags) of the rss_feed.
+ * as well as the language, description, title, subjects (tags) and date of the rss_feed.
  *
  * The returned query object will have the following format:
  * {
@@ -54,6 +54,7 @@ async function getRssFeedData(apiPath, APISUFIX, req, settings) {
     let description = json.description;
     let title = json.title;
     let subjects = json.subjects;
+    let date = json.effective;
 
     if (!queryData) {
       throw new Error('No query data found in listing block');
@@ -76,7 +77,7 @@ async function getRssFeedData(apiPath, APISUFIX, req, settings) {
       metadata_fields: '_all',
       b_start: 0,
     };
-    return { query, language, description, title, subjects };
+    return { query, language, description, title, subjects, date };
   } catch (err) {
     throw err;
   }
@@ -114,6 +115,15 @@ async function fetchListingItems(query, apiPath, authToken) {
   }
 }
 
+async function getImageSize(url) {
+  try {
+    const response = await superagent.head(url);
+    return response.headers['content-length'];
+  } catch (err) {
+    throw new Error(`Failed to get image size: ${err.message}`);
+  }
+}
+
 /**
  * Creates an Express middleware for generating an RSS feed using the listing block of the
  * rss_feed content type.
@@ -140,7 +150,7 @@ function make_rssMiddleware(config) {
 
   async function rssMiddleware(req, res, next) {
     try {
-      const { query, language, description, title, subjects } =
+      const { query, language, description, title, subjects, date } =
         await getRssFeedData(apiPath, APISUFIX, req, settings);
       const items = await fetchListingItems(
         query,
@@ -154,6 +164,7 @@ function make_rssMiddleware(config) {
         site_url: settings.publicURL,
         generator: 'RSS Feed Generator',
         language: language || 'en',
+        pubDate: new Date(date),
       };
       if (subjects) {
         for (let i = 0; i < subjects.length; i++) {
@@ -161,36 +172,45 @@ function make_rssMiddleware(config) {
         }
       }
       const feed = new RSS(feedOptions);
+
       items.forEach((item) => {
-        let link = toPublicURL(item['getPath'].replace('/Plone', ''));
+        let link = item['getURL'];
+        let enclosure = undefined;
+        if (
+          item.image_field &&
+          item.image_scales &&
+          item.image_scales[item.image_field]
+        ) {
+          const imageData = item.image_scales[item.image_field][0];
+          const imageUrl = `${link
+            .concat('/')
+            .concat(
+              item.image_scales[item.image_field][0].scales.preview.download,
+            )}`;
+          const mimeType = item['content-type'];
+          const originalSize = imageData.size;
+          enclosure = {
+            url: imageUrl,
+            type: mimeType,
+            size: originalSize,
+          };
+        }
         feed.item({
           title: item.title,
           description: item.description,
-          url: link, // link to the item
-          date: new Date(item.modified),
+          url: link,
+          guid: item.UID,
+          date: new Date(item.effective),
           author: item['listCreators']
             ? item['listCreators'].map((creator) => creator).join(', ')
             : undefined,
           categories: item.Subject ? item.Subject : [],
-          enclosure:
-            item.image_field &&
-            item.image_scales &&
-            item.image_scales[item.image_field]
-              ? {
-                  url: link
-                    .concat('/')
-                    .concat(
-                      item.image_scales[item.image_field][0].scales.preview
-                        .download,
-                    ),
-                  type: 'image/jpeg', // or the correct MIME type of the image
-                }
-              : undefined,
+          enclosure: enclosure || undefined,
         });
       });
 
       const xml = feed.xml({ indent: true });
-      res.setHeader('content-type', 'application/rss+xml');
+      res.setHeader('content-type', 'application/atom+xml');
       res.send(xml);
     } catch (err) {
       next(err);
