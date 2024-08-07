@@ -5,7 +5,8 @@ import { findBlocks, toPublicURL, flattenToAppURL } from '@plone/volto/helpers';
 
 /**
  * Retrieves the query data (search criteria) used by the listing block of the rss_feed content type
- * as well as the language, description, title, subjects (tags) and date of the rss_feed.
+ * as well as the language, description, title, subjects (tags), date, max_description_length, and
+ * max_title_length of the rss_feed.
  *
  * The returned query object will have the following format:
  * {
@@ -50,12 +51,13 @@ async function getRssFeedData(apiPath, APISUFIX, req, settings) {
     const json = JSON.parse(JSON.stringify(response.body));
     const listingBlock = findBlocks(json.blocks, 'listing');
     let queryData = json.blocks[listingBlock]?.querystring;
-    let language = json.language.token;
-    let description = json.description;
+    let language = json.language.token ?? 'en';
+    let description = json.description ?? 'A Volto RSS Feed';
     let title = json.title;
     let subjects = json.subjects;
     let date = json.effective;
-
+    let max_description_length = json.max_description_length;
+    let max_title_length = json.max_title_length;
     if (!queryData) {
       throw new Error('No query data found in listing block');
     }
@@ -77,7 +79,16 @@ async function getRssFeedData(apiPath, APISUFIX, req, settings) {
       metadata_fields: '_all',
       b_start: 0,
     };
-    return { query, language, description, title, subjects, date };
+    return {
+      query,
+      language,
+      description,
+      title,
+      subjects,
+      date,
+      max_description_length,
+      max_title_length,
+    };
   } catch (err) {
     throw err;
   }
@@ -115,13 +126,15 @@ async function fetchListingItems(query, apiPath, authToken) {
   }
 }
 
-async function getImageSize(url) {
-  try {
-    const response = await superagent.head(url);
-    return response.headers['content-length'];
-  } catch (err) {
-    throw new Error(`Failed to get image size: ${err.message}`);
-  }
+/** Truncates the text to the specified length.
+ * If the text is longer than the specified length, it will be truncated and '...' will be appended.
+ * @function truncateText
+ * @param {string} text - The text to be truncated.
+ * @param {number} maxLength - The maximum length of the text.
+ * @return {string} The truncated text.
+ */
+function truncateText(text, maxLength) {
+  return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
 }
 
 /**
@@ -150,20 +163,28 @@ function make_rssMiddleware(config) {
 
   async function rssMiddleware(req, res, next) {
     try {
-      const { query, language, description, title, subjects, date } =
-        await getRssFeedData(apiPath, APISUFIX, req, settings);
+      const {
+        query,
+        language,
+        description,
+        title,
+        subjects,
+        date,
+        max_description_length,
+        max_title_length,
+      } = await getRssFeedData(apiPath, APISUFIX, req, settings);
       const items = await fetchListingItems(
         query,
         apiPath,
         req.universalCookies.get('auth_token'),
       );
       const feedOptions = {
-        title: title,
-        description: description || 'A Volto RSS Feed',
+        title: truncateText(title, max_title_length),
+        description: truncateText(description, max_description_length),
         feed_url: `${settings.publicURL}${req.path}`,
         site_url: settings.publicURL,
         generator: 'RSS Feed Generator',
-        language: language || 'en',
+        language: language,
         pubDate: new Date(date),
       };
       if (subjects) {
@@ -196,8 +217,8 @@ function make_rssMiddleware(config) {
           };
         }
         feed.item({
-          title: item.title,
-          description: item.description,
+          title: truncateText(item.title, max_title_length),
+          description: truncateText(item.description, max_description_length),
           url: link,
           guid: item.UID,
           date: new Date(item.effective),
