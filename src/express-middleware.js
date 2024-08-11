@@ -104,14 +104,15 @@ async function getRssFeedData(apiPath, APISUFIX, req, settings) {
  * @function fetchListingItems
  * @param {Object} query - The query data used for fetching items.
  * @param {string} apiPath - The base path for the API requests.
+ * @param {string} APISUFIX - The suffix added to the API path depending on the environment.
  * @param {string} authToken - The authentication token for authorized requests.
  * @return {Array} An array of items that match the query criteria.
  * @throws Will throw an error if the request fails.
  */
-async function fetchListingItems(query, apiPath, authToken) {
+async function fetchListingItems(query, apiPath, APISUFIX, authToken) {
   try {
     const request = superagent
-      .post(`${apiPath}/@querystring-search`)
+      .post(`${apiPath}${__DEVELOPMENT__ ? '' : APISUFIX}/@querystring-search`)
       .send(query)
       .accept('json');
 
@@ -153,12 +154,18 @@ function make_rssMiddleware(config) {
   const { settings } = config;
   const APISUFIX = settings.legacyTraverse ? '' : '/++api++';
   let apiPath = '';
+  const host = process.env.HOST || 'localhost';
+  const port = process.env.PORT || '3000';
+  const ProdapiPath = `http://${host}:${port}`;
   if (settings.internalApiPath && __SERVER__) {
     apiPath = settings.internalApiPath;
   } else if (__DEVELOPMENT__ && settings.devProxyToApiPath) {
     apiPath = settings.devProxyToApiPath;
   } else {
     apiPath = settings.apiPath;
+  }
+  if (apiPath === '') {
+    apiPath = ProdapiPath;
   }
 
   async function rssMiddleware(req, res, next) {
@@ -176,6 +183,7 @@ function make_rssMiddleware(config) {
       const items = await fetchListingItems(
         query,
         apiPath,
+        APISUFIX,
         req.universalCookies.get('auth_token'),
       );
       const feedOptions = {
