@@ -1,12 +1,10 @@
 # volto-rss-provider
 
-## Considerations for `volto-rss-provider`
-
-### Introduction
-
 The `volto-rss-provider` add-on enables RSS feed generation for a Volto site. It uses the `rss_feed` content type, which contains a listing block for querying items to be displayed in the RSS feed. The feed can be accessed via URLs like `http://<website-domain>/<path-to-feed>/rss.xml`.
 
-### Features
+To use this volto addon, you also need to install the [backend addon](https://github.com/collective/rss-provider) that frames the `rss_feed` content type.
+
+## Features
 
 - Generates RSS feeds using Express middleware.
 - Supports Atom format for the feed.
@@ -22,25 +20,26 @@ The `rss_feed` content type includes a listing block. Use the listing block to q
 
 The following options are supported for the RSS feed:
 
-- **title**: The title of the RSS feed, derived from the `rss_feed` content type.
-- **description**: A description of the RSS feed, also from the `rss_feed` content type.
+- **title**: The title of the RSS feed, truncated to a maximum length specified by `max_title_length`.
+- **description**: A description of the RSS feed, truncated to a maximum length specified by `max_description_length`.
 - **feed_url**: The URL to the RSS feed.
 - **site_url**: The URL to the site the feed is for.
-- **generator**: The name of the feed generator.
+- **generator**: The name of the feed generator, statically set as `"RSS Feed Generator"`.
 - **language**: The language of the feed content.
+- **pubDate**: The publication date of the feed, derived from the `effective` field of the `rss_feed` content type.
 - **categories**: Tags specified in the `rss_feed` content type, used as categories for the RSS feed.
 
 ### Item Options
 
 The following options are supported for each item in the RSS feed:
 
-- **title**: The title of the item.
-- **description**: The description of the item.
+- **title**: The title of the item, truncated to a maximum length specified by `max_title_length`.
+- **description**: The description of the item, truncated to a maximum length specified by `max_description_length`.
 - **url**: The URL to the item.
-- **date**: The date the item was last modified.
+- **date**: The date the item became publicly available, derived from the `effective` field of the item.
 - **author**: The authors of the item, derived from the `listCreators` data field and set by the `Creators` option.
 - **categories**: The categories for the item, derived from the `Subject` data field and set by the `Tags` option.
-- **enclosure**: The enclosure for the item, typically used for images.
+- **enclosure**: This field typically represents media files (like images) associated with the item. The code checks for an image in the item’s `image_field` and its associated scales in `image_scales`. If found, it generates an enclosure with the image’s URL, MIME type, and size.
 
 ### Image Precedence
 
@@ -60,149 +59,10 @@ http://<website-domain>/<path-to-feed>/rss.xml
 
 This URL will return the RSS feed in XML format.
 
-## Development
+### RSS Feed Generation
 
-You can develop an add-on in isolation using the boilerplate already provided by the add-on generator.
-The project is configured to have the current add-on installed and ready to work with.
-This is useful to bootstrap an isolated environment that can be used to quickly develop the add-on or for demo purposes.
-It's also useful when testing an add-on in a CI environment.
+This add-on uses the [rss](https://www.npmjs.com/package/rss) npm package to generate the RSS feed.
 
-```{note}
-It's quite similar when you develop a Plone backend add-on in the Python side, and embed a ready to use Plone build (using buildout or pip) in order to develop and test the package.
-```
+### Caveats
 
-The dockerized approach performs all these actions in a custom built docker environment:
-
-1. Generates a vanilla project using the official Volto Yo Generator (@plone/generator-volto)
-2. Configures it to use the add-on with the name stated in the `package.json`
-3. Links the root of the add-on inside the created project
-
-After that you can use the inner dockerized project, and run any standard Volto command for linting, acceptance test or unit tests using Makefile commands provided for your convenience.
-
-### Setup the environment
-
-Run once
-
-```shell
-make dev
-```
-
-which will build and launch the backend and frontend containers.
-There's no need to build them again after doing it the first time unless something has changed from the container setup.
-
-In order to make the local IDE play well with this setup, is it required to run once `yarn` to install locally the required packages (ESlint, Prettier, Stylelint).
-
-Run
-
-```shell
-yarn
-```
-
-### Build the containers manually
-
-Run
-
-```shell
-make build-backend
-make build-addon
-```
-
-### Run the containers
-
-Run
-
-```shell
-make start-dev
-```
-
-This will start both the frontend and backend containers.
-
-### Stop Backend (Docker)
-
-After developing, in order to stop the running backend, don't forget to run:
-
-Run
-
-```shell
-make stop-backend
-```
-
-### Linting
-
-Run
-
-```shell
-make lint
-```
-
-### Formatting
-
-Run
-
-```shell
-make format
-```
-
-### i18n
-
-Run
-
-```shell
-make i18n
-```
-
-### Unit tests
-
-Run
-
-```shell
-make test
-```
-
-### Acceptance tests
-
-Run once
-
-```shell
-make install-acceptance
-```
-
-For starting the servers
-
-Run
-
-```shell
-make start-test-acceptance-server
-```
-
-The frontend is run in dev mode, so development while writing tests is possible.
-
-Run
-
-```shell
-make test-acceptance
-```
-
-To run Cypress tests afterwards.
-
-When finished, don't forget to shutdown the backend server.
-
-```shell
-make stop-test-acceptance-server
-```
-
-### Release
-
-Run
-
-```shell
-make release
-```
-
-For releasing a RC version
-
-Run
-
-```shell
-make release-rc
-```
+- **Image Enclosure Size**: For the image included in the enclosure of each RSS feed item, we are using its `preview` scale. However, due to limitations in retrieving the actual size of the `preview` image, the size of the original image is used instead in the enclosure. This may result in a discrepancy between the displayed image size and the reported size in the RSS feed.
