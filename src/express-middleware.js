@@ -242,7 +242,29 @@ function make_rssMiddleware(config) {
       res.setHeader('content-type', 'application/atom+xml');
       res.send(xml);
     } catch (err) {
-      next(err);
+      if (err.response && err.response.status === 401) {
+        // Handle unauthorized errors
+        res.status(401).json({
+          error: 'Unauthorized',
+          message:
+            'You are not authorized to access the requested RSS feed. Please log in and try again.',
+        });
+      } else if (err.response && err.response.status === 404) {
+        // Handle not found errors
+        res.status(404).json({
+          error: 'Not Found',
+          message:
+            'The requested RSS feed could not be found. Please verify the URL and try again.',
+        });
+      } else {
+        // Handle other errors
+        res.status(500).json({
+          error: 'Internal Server Error',
+          message:
+            'An unexpected error occurred while generating the RSS feed. Please try again later.',
+        });
+      }
+      return;
     }
   }
 

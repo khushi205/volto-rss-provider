@@ -72,7 +72,7 @@ export const TitleBlockEdit = (props) => {
   // disable new blocks on enter key press if disableNewBlocks is true
   // or if the block is detached
   const disableNewBlocks = useMemo(
-    () => data?.disableNewBlocks ?? detached,
+    () => data?.disableNewBlocks || detached,
     [data, detached],
   );
 
