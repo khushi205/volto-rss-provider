@@ -22,6 +22,7 @@ const applyConfig = (config) => {
   };
 
   config.views.contentTypesViews.rss_feed = RSSFeedView;
+  config.views.layoutViewsNamesMapping.rss_feed_view = 'Rss Feed';
 
   if (__SERVER__) {
     const makeMiddlewares = require('./express-middleware').default;
