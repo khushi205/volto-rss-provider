@@ -1,6 +1,6 @@
 {
   "name": "volto-rss-provider",
-  "version": "1.0.0a1",
+  "version": "1.0.0",
   "description": "A Volto addon to provide RSS feeds",
   "main": "src/index.js",
   "repository": "git+https://github.com/collective/volto-rss-provider.git",
