@@ -1,8 +1,11 @@
 {
   "name": "volto-rss-provider",
-  "version": "0.1.0",
-  "description": "volto-rss-provider: Volto add-on",
+  "version": "1.0.0a1",
+  "description": "A Volto addon to provide RSS feeds",
   "main": "src/index.js",
+  "repository": "git+https://github.com/collective/volto-rss-provider.git",
+  "bugs": "https://github.com/collective/volto-rss-provider/issues",
+  "homepage": "https://github.com/collective/volto-rss-provider#readme",
   "license": "MIT",
   "keywords": [
     "volto-addon",
@@ -11,7 +14,7 @@
     "react"
   ],
   "publishConfig": {
-    "access": "public"
+    "registry": "https://registry.npmjs.org"
   },
   "scripts": {
     "i18n": "rm -rf build/messages && NODE_ENV=production i18n --addon",
@@ -36,7 +39,7 @@
     "postcss-less": "6.0.0",
     "postcss-scss": "4.0.8",
     "prettier": "3.0.3",
-    "release-it": "^16.1.5",
+    "release-it": "^16.3.0",
     "stylelint": "15.10.3",
     "stylelint-config-idiomatic-order": "9.0.0",
     "stylelint-config-sass-guidelines": "10.0.0",
@@ -45,15 +48,7 @@
   "peerDependencies": {
     "@plone/volto": "^17.0.0"
   },
-  "addons": [
-    "@eeacms/volto-accordion-block",
-    "@kitconcept/volto-slider-block",
-    "@eeacms/volto-matomo"
-  ],
   "dependencies": {
-    "@eeacms/volto-accordion-block": "*",
-    "@eeacms/volto-matomo": "*",
-    "@kitconcept/volto-slider-block": "*",
     "rss": "1.2.2"
   }
 }
