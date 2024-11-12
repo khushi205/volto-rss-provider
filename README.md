@@ -12,6 +12,7 @@ To use this volto addon, you also need to install the [backend addon](https://gi
 - Allows users to specify tags, which become categories in the RSS feed.
 - Supports a variety of item options, including authors, categories, and enclosures, such as images.
 
+
 ### Setting Up the RSS Feed
 
 The `rss_feed` content type includes a listing block. Use the listing block to query the items you want to display in the feed. The generated feed will include the specified items in RSS XML format.
